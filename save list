@@ -1,0 +1,8 @@
+col_list<-list()
+col_list[["Cluster"]]<-as.data.frame(col)
+col_list[["cluster_new"]]<-as.data.frame(col_new)
+col_list[["stage"]]<-as.data.frame(col_stage)
+col_list[["location"]]<-as.data.frame(col_location)
+library(plyr)
+col_list<-do.call(rbind.fill,col_list) 
+write.table(file="color_anno.txt",col_list)
