@@ -1,0 +1,24 @@
+pbmc<- CreateSeuratObject(raw.data = data_exprMat,scale.factor = F,min.cells = 3,is.expr = 1,min.genes = 2000)
+pbmc<- ScaleData(object =pbmc);
+pbmc<-AddMetaData(object = pbmc,metadata = anno_pbmc)
+pbmc<-SetAllIdent(object = pbmc,id="cluster")
+pbmc<- FindVariableGenes(object = pbmc, do.plot = FALSE,x.low.cutoff = 1)
+pbmc<-RunPCA(pbmc, pc.genes = colnames(train_data_normalized), pcs.compute = 20, use.imputed = FALSE,
+             rev.pca = T, weight.by.var = F, do.print = F)
+DimPlot(pbmc, reduction.use = "pca", dim.1 = 1, dim.2 = 2,
+        pt.size = 3, group.by = "ident",do.return = T)+scale_color_manual(values=col)
+pbmc<-RunTSNE(pbmc, reduction.use = "pca", cells.use = NULL,dims.use = 1:6,perplexity=10)
+library(Rtsne)
+d<-dist(t(data_exprMat[colnames(train_data_normalized),]))
+set.seed(12345)
+tsne_out<-Rtsne(d,is_distance = TRUE,max_iter=2500,perplexity=9,theta=0,verbose=TRUE)
+pbmc@dr$tsne@cell.embeddings[]<-tsne_out$Y
+DimPlot(pbmc, reduction.use = "tsne", dim.1 = 1, dim.2 = 2,
+        pt.size = 3, group.by = "ident",do.return = T)+scale_color_manual(values=col)
+marker<-find_all_markers(pbmc,only.pos=T,test.use="roc",min.pct=0.25,thresh.use=1)
+DoHeatmap(object =pbmc,genes.use = marker$gene, slim.col.label = TRUE, group.label.rot = TRUE,cex.row = 3,group.cex = 10,title="every group high gene")
+pheatmap(data_exprMat[marker$gene,rownames(anno_pbmc)[order(anno_pbmc$cluster)]],cluster_rows = F,cluster_cols = F,show_rownames = F,show_colnames = F,annotation_col = anno_pbmc,color = colorRampPalette(c("darkblue","white","red"))(100),annotation_colors = list(cluster=col))
+####
+marker_gene<-read.table("F:\\data using frequently\\marker_gene.txt",header = TRUE,row.names = 1)
+bi_EC.markers <- FindMarkers(object = pbmc, ident.1 = "A", ident.2 = "B", 
+                             only.pos = T,test.use="roc",min.pct=0.25,thresh.use=1)
