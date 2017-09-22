@@ -1,0 +1,198 @@
+cell_cycle<-read.table("F:\\data using frequently\\cell_cycle.txt")
+library(Seurat)
+library(randomForest)
+library(gplots)
+get_deg <- function(m1, m2, fold){
+  p_all <- vector()
+  delta_all <- vector()
+  mean_all_1 <- vector()
+  mean_all_2 <- vector()
+  index_fc_1 <- vector()
+  index_fc_2 <- vector()
+  p_adj <- vector() 
+  for (i in 1:nrow(m1)) {
+    ttest <- t.test(m1[i, ], m2[i, ])
+    p <- ttest$p.value
+    p_all <- c(p_all, p)
+    avg_1 <- mean(m1[i, ], na.rm = T)
+    avg_2 <- mean(m2[i, ], na.rm = T)
+    mean_all_1 <- c(mean_all_1, avg_1)
+    mean_all_2 <- c(mean_all_2, avg_2)
+    delta <- avg_1 - avg_2
+    delta_all <- c(delta_all, delta)
+    if ((!is.na(delta)) && (!is.na(p)) && (p < 0.05)) {
+      if (delta > log2(fold)) {
+        index_fc_1 <- c(index_fc_1, i)
+      }  else if(delta < -log2(fold)) {
+        index_fc_2 <- c(index_fc_2, i)
+      }
+    }
+  }
+  if (length(p_all) > 200) {
+    p_adj <- p.adjust(p_all, method = "BH")
+  }
+  return (list(index_fc_1, index_fc_2, mean_all_1, mean_all_2, delta_all, p_all, p_adj))
+}
+
+RF_analysis<-function(x){
+  set.seed(1);
+  EC<- CreateSeuratObject(raw.data = x,scale.factor = F,min.cells = 3,is.expr = 1,min.genes = 2000)
+  EC<- ScaleData(object =EC);
+  EC<- FindVariableGenes(object = EC, do.plot = FALSE,x.low.cutoff = 1);
+  hvg_gene<-setdiff(EC@var.genes,as.vector(as.character(cell_cycle$V1)));
+  m <- as.matrix(x[hvg_gene,]);
+  myCol <- c("darkblue", "white", "red");
+  hc <- hclust(as.dist(1-cor(m, method = "pearson", use = "pairwise.complete.obs")), method = "ward.D2");
+  plot(as.dendrogram(hc),hang=-1,col="darkgreen");
+  cl <- cutree(hc, k=2);
+  if ((table(cl)[1] < 10) || (table(cl)[2] < 10 )) {
+    stop("The sizes of one or both clusters are too small for further analysis!")
+  }
+  cl_deg_a <- t(m[ , cl == 1]);
+  cl_deg_b <- t(m[ , cl == 2]);
+  cate_bf_fs <- as.factor(c(rep("a", nrow(cl_deg_a)), rep("b", nrow(cl_deg_b))));
+  feature_bf_fs <- as.matrix(rbind(cl_deg_a, cl_deg_b));
+  set <- sample(1: nrow(feature_bf_fs), nrow(feature_bf_fs), replace=F);
+  cate_bf_fs <- cate_bf_fs[set];
+  feature_bf_fs <- feature_bf_fs[set, ];
+  rf_bf_fs <- randomForest(feature_bf_fs, cate_bf_fs, importance = TRUE, proximity = TRUE);
+  imp_bf_fs <- importance(rf_bf_fs, type = 1);
+  fs <- rfcv(feature_bf_fs, cate_bf_fs, cv.fold = 10, scale = "log", step = 0.9, recursive = F);
+  len <- length(fs$n.var[fs$error.cv == min(fs$error.cv)]);
+  min_fs <- fs$n.var[fs$error.cv == min(fs$error.cv)][len];
+  ind <- order(-imp_bf_fs)[1: min_fs];
+  feature_fs <- feature_bf_fs[ , ind];
+  cate_fs <- cate_bf_fs;
+  rf_fs <- randomForest(feature_fs, as.factor(cate_fs), importance=TRUE, proximity=TRUE);
+  fea1_fs <- data.frame();
+  fea1_fs <- feature_fs[(rf_fs$predicted == 'a') & (rf_fs$votes[ , 1] > 0.6), , drop = FALSE];
+  cat1_fs <- rf_fs$predicted[(rf_fs$predicted =='a') & (rf_fs$votes[ , 1] > 0.6)];
+  fea2_fs <- data.frame();
+  fea2_fs <- feature_fs[(rf_fs$predicted == 'b') & (rf_fs$votes[ , 2] > 0.6), , drop = FALSE];
+  cat2_fs <- rf_fs$predicted[(rf_fs$predicted =='b') & (rf_fs$votes[ , 2] > 0.6)];
+  cate <- as.factor(c(as.character(cat1_fs), as.character(cat2_fs)));
+  feature <- as.matrix(rbind(fea1_fs, fea2_fs));
+  set <- sample(1: nrow(feature), nrow(feature), replace = F);
+  cate <- cate[set];
+  feature <- feature[set, ];
+  err_fs <- vector();
+  cate_table <- data.frame();
+  k <- 10; # 10-fold cross validation
+  for (run in 1: 100) {
+    cate_table <- rbind(cate_table, table(cate))
+    n <- floor(nrow(feature) / k)
+    subset <- sample(1: nrow(feature), n, replace = F)
+    train_feature <- feature[-subset, ]
+    train_cate <- cate[-subset]
+    test_feature <- feature[subset, ]
+    test_cate <- cate[subset]
+    retry <- -1
+    # Ensure each training set has > 5 samples
+    if (table(train_cate)[1] < 5 || table(train_cate)[2] < 5) {
+      retry <- 50
+      while(retry > 0){
+        subset <- sample(1: nrow(feature), n, replace = F)
+        train_feature <- feature[-subset, ]
+        train_cate <- cate[-subset]
+        test_feature <- feature[subset, ]
+        test_cate<- cate[subset]
+        if (table(train_cate)[1] < 5 || table(train_cate)[2] < 5) {
+          retry <- retry - 1
+        }  else {
+          retry <- -1
+        }
+      }
+    }
+    if (retry == 0) {
+      stop("The test set is too small!")
+    }
+    if(retry == -1){
+      rf <- randomForest(train_feature, as.factor(train_cate), importance = TRUE, proximity = TRUE)
+      pred2_fs <- predict(rf, newdata = test_feature)
+      mis <- length(test_cate[test_cate != pred2_fs]) / length(test_cate)
+      err_fs <- c(err_fs, mis)
+      
+      cate <- as.factor(c(as.character(train_cate), as.character(pred2_fs)))
+      feature <- as.matrix(rbind(train_feature, test_feature))
+      set <- sample(1: nrow(feature), nrow(feature), replace=F)
+      cate <- cate[set]
+      feature <- feature[set, ]
+    }
+  }
+  rf_whole <- randomForest(feature, as.factor(cate), importance = TRUE, proximity = TRUE)
+  pred_whole <- predict(rf_whole, newdata = feature_fs)
+  pred_whole_prob <- predict(rf_whole, newdata = feature_fs, type = "prob")
+  fea1 <- data.frame()
+  fea2 <- data.frame()
+  fea3 <- data.frame()
+  cat1 <- vector()
+  cat2 <- vector()
+  cat3 <- vector()
+  cate_whole <- vector()
+  for (i in 1: length(pred_whole)) {
+    if ((pred_whole[i] == 'a') && (pred_whole_prob[i, 1] > 0.55)){
+      cate_whole[i] <- 'a'
+    }  else if ((pred_whole[i] == 'a') && (pred_whole_prob[i, 1] <= 0.55)) {
+      cate_whole[i]<-'c'
+    }  else if ((pred_whole[i] == 'b') && (pred_whole_prob[i, 2] > 0.55)) {
+      cate_whole[i] <- 'b'
+    }  else if ((pred_whole[i] == 'b') && (pred_whole_prob[i, 2] <= 0.55)){
+      cate_whole[i] <- 'c'
+    }
+  }
+  cat1 <- as.factor(as.character(cate_whole[cate_whole == 'a']))
+  cat2 <- as.factor(as.character(cate_whole[cate_whole == 'b']))
+  cat3 <- as.factor(as.character(cate_whole[cate_whole == 'c']))
+  fea1 <- feature_fs[cate_whole == 'a', , drop = FALSE]
+  fea2 <- feature_fs[cate_whole == 'b', , drop = FALSE]
+  fea3 <- feature_fs[cate_whole == 'c', , drop = FALSE]
+  # Output classification stats
+  op<-par(mfrow = c(2, 2))
+  with(fs, plot(n.var, error.cv, log = "x", type = "o", lwd = 2, xlab = "Number of features", ylab = "Error of cross-valicatoin", main = "Feature selections"))
+  plot(err_fs, col = "blue", main = "Misclassification_error_fs", xlab = "Run", ylab = "Error")
+  lines(err_fs, col = "blue", lwd = 2)
+  plot(cate_table[ , 1], col = "magenta", main = "Number of cases in\nClass 1", xlab = "Runs", ylab = "Number of samples")
+  lines(cate_table[ ,1], col = "magenta", lwd = 2)
+  plot(cate_table[ , 2], col = "cyan", main = "Number of cases in\nClass 2", xlab = "Runs", ylab = "Number of samples")
+  lines(cate_table[ , 2],col = "cyan", lwd = 2)
+  par(op)
+  gene_name <- colnames(x)
+  fea1_name <- row.names(fea1)
+  fea2_name <- row.names(fea2)
+  index_fea1 <- vector()
+  index_fea2 <- vector()
+  for (i in 1: length(gene_name)) {
+    for (j in 1:length(fea1_name)) {
+      if (gene_name[i] == fea1_name[j]) {
+        index_fea1 <- c(index_fea1, i)
+      }
+    }
+    for (k in 1: length(fea2_name)) {
+      if (gene_name[i] == fea2_name[k]) {
+        index_fea2 <- c(index_fea2, i)
+      }
+    }
+  }
+  cl_1 <- as.matrix(x[ , index_fea1])
+  cl_2 <- as.matrix(x[ , index_fea2])
+  get_fs_deg <- get_deg(cl_1, cl_2, 2)
+  index_2fc <- c(get_fs_deg[[1]], get_fs_deg[[2]])
+  m_2fc <- as.matrix(cbind(cl_1[index_2fc, ], cl_2[index_2fc, ]))
+  hr_m_2fc <- hclust(as.dist(1 - cor(t(m_2fc), method = "pearson", use = "pairwise.complete.obs")), method = "ward.D2")
+  heatmap.2(m_2fc, trace = "none", Rowv = as.dendrogram(hr_m_2fc), dendrogram = "row", Colv = F, colsep = ncol(cl_1), sepwidth = 0.1, sepcolor = "green", col = colorRampPalette(c(myCol)), ColSideColors = c(rep("red", ncol(cl_1)), rep("blue", ncol(cl_2))), main = "Heatmp of clusters", cexCol = 0.4, cexRow = 0.3, labRow = NULL)
+  legend("topright", legend = c("Cluster 1", "Cluster 2"), fill = c("red", "blue"), border="white", bty="n", cex=1)
+  library(org.Hs.eg.db)
+  library(clusterProfiler)
+  entrez_gene<-bitr(rownames(cl_1)[get_fs_deg[[1]]], fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Hs.eg.db)
+  enrichGO1<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Hs.eg.db,keytype = "ENTREZID", ont ="BP",  pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
+  entrez_gene<-bitr(rownames(cl_2)[get_fs_deg[[2]]], fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Hs.eg.db)
+  enrichGO2<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Hs.eg.db,keytype = "ENTREZID", ont ="BP",  pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
+  cluster<-list()
+  cluster[["group1"]]<-colnames(cl_1)
+  cluster[["group2"]]<-colnames(cl_2)
+  cluster[["gene1"]]<-rownames(cl_1)[get_fs_deg[[1]]]
+  cluster[["gene2"]]<-rownames(cl_2)[get_fs_deg[[2]]]
+  cluster[["enrichGO1"]]<-enrichGO1@result$Description
+  cluster[["enrichGO2"]]<-enrichGO2@result$Description
+  return(cluster)
+}
