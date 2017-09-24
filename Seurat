@@ -24,4 +24,4 @@ bi_EC.markers <- FindMarkers(object = pbmc, ident.1 = "A", ident.2 = "B",
                              only.pos = T,test.use="roc",min.pct=0.25,thresh.use=1)
 features.plot <- c("Ptprc","Sox7","Runx1","Gata1","Itga2b","Maf","Npl","Pecam1","Cdh5","Tal1","Lyl1","Tie1")
 feature.plot_emp<-c("Kit","Itga2b","Fcgr3")
-FeaturePlot(object = pbmc, features.plot = feature.plot_emp, cols.use = c("lightgrey", "orangered"),pt.size = 2)
+FeaturePlot(object = pbmc, features.plot = feature.plot_emp, cols.use = c(scales::alpha("grey",0.2), "orangered"),pt.size = 2)
