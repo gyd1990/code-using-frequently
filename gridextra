@@ -1,0 +1,7 @@
+library(gridExtra)
+pdf("tsne_GOF_outof_Neg.pdf",height = 6,width = 8)
+grid.arrange(tsne_cluster,tsne_location,tsne_Cluster,ncol=2,nrow=2)
+dev.off()
+png("tsne_GOF_outof_Neg.png",height =600,width =800)
+grid.arrange(tsne_cluster,tsne_location,tsne_Cluster,ncol=2,nrow=2)
+dev.off()
