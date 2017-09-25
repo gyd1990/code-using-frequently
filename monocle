@@ -1,0 +1,18 @@
+library(monocle)
+pd <- new("AnnotatedDataFrame", data =anno_RF)
+HSMM <- newCellDataSet(as.matrix(data_tmp[,rownames(anno_RF)]), phenoData = pd,expressionFamily=negbinomial())
+HSMM <- estimateSizeFactors(HSMM)
+HSMM <- estimateDispersions(HSMM)
+disp_table <- dispersionTable(HSMM)
+ordering_genes <- subset(disp_table,
+                         mean_expression >= 0.5 &
+                         dispersion_empirical >= 2 * dispersion_fit)$gene_id
+ordering_genes <- setdiff(ordering_genes, as.character(cell_cycle$V1))
+
+HSMM<- setOrderingFilter(HSMM, ordering_genes)
+plot_ordering_genes(HSMM)
+HSMM <- reduceDimension(HSMM, max_components=2)
+HSMM <- orderCells(HSMM, reverse=FALSE)
+plot_cell_trajectory(HSMM,color_by = "cluster",cell_size = 2,show_branch_points = F) + scale_color_manual(values = col_RF)
+plot_cell_trajectory(HSMM,color_by = "State",cell_size = 2,show_branch_points = F) + scale_color_manual(values = color_state)
+plot_cell_trajectory(HSMM,color_by = "Pseudotime",cell_size = 2,show_branch_points = F,show_tree = F)+scale_colour_gradientn(colours = colorRampPalette(c("green","yellow","red"))(10))
