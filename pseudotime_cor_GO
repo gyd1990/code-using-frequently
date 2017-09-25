@@ -21,4 +21,22 @@ cor_pvalue<-function(x,y){cor_up<-corAndPvalue(x,y,alternative = "greater")
   return(pseudo_gene)
 }
 
-lym_pseudo_gene<-cor_pvalue(as.numeric(lym_pseudotime$Pseudotime),t(data_exprMat[,rownames(lym_pseudotime)]))
+plot_pseudo<-function(list,cell_data,pseudo_anno,object){
+  pdf(paste(object,"_pseudo_GO_up",".pdf",sep=""),width = 10,height = 10)
+  barplot(list[[3]],drop=TRUE,showCategory = 20,x="Count",font.size =8 ,title = paste(object,"_pseudo_GO_up",sep=""))
+  dev.off()
+  png(paste(object,"_pseudo_GO_down",".png",sep=""),width = 1000,height = 600)
+  barplot(list[[4]],drop=TRUE,showCategory = 20,x="Count",font.size =8 ,title = paste(object,"_pseudo_GO_down",sep=""))
+  dev.off()
+  pdf(paste(object,"_pseudo_heatmap",".pdf",sep=""),width = 10,height = 6)
+  pheatmap(cell_data[c(list[[1]],list[[2]]),rownames(pseudo_anno)[order(pseudo_anno$Pseudotime,decreasing = F)]],annotation_col = pseudo_anno,show_rownames = F,show_colnames = F,cluster_rows = F,cluster_cols = F,color = colorRampPalette(c("darkblue","white","red"))(100))
+  dev.off()
+  png(paste(object,"_pseudo_heatmap",".png",sep=""),width = 1000,height = 600)
+  pheatmap(cell_data[c(list[[1]],list[[2]]),rownames(pseudo_anno)[order(pseudo_anno$Pseudotime,decreasing = F)]],annotation_col = pseudo_anno,show_rownames = F,show_colnames = F,cluster_rows = F,cluster_cols = F,color = colorRampPalette(c("darkblue","white","red"))(100))
+  dev.off()
+}
+phmat<-t(scale(t(data_exprMat)))
+phmat[phmat>2]<-2
+phmat[phmat< -2]<- -2
+lym_pseudo_gene<-cor_pvalue(as.numeric(lym_pseudotime$Pseudotime),t(data_exprMat[,rownames(lym_pseudotime)]),"lym")
+plot_pseudo(lym_pseudo_gene,phmat[,rownames(lym_pseudotime)],lym_pseudotime,"lym")
