@@ -1,0 +1,12 @@
+library(mclust)
+mc <- Mclust(t(data_exprMat[7,])) # Model-based-clustering
+####可视化
+library(factoextra)
+# BIC values used for choosing the number of clusters
+fviz_mclust(mc, "BIC", palette = "jco")
+tmp$labels$subtitle
+# Classification: plot showing the clustering
+fviz_mclust(mc, "classification", geom = "point", 
+            pointsize = 1.5, palette = "jco")
+# Classification uncertainty
+fviz_mclust(mc, "uncertainty", palette = "jco"
