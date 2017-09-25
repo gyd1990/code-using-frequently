@@ -1,0 +1,24 @@
+library(WGCNA)
+library(org.Mm.eg.db)
+library(clusterProfiler)
+cor_pvalue<-function(x,y){cor_up<-corAndPvalue(x,y,alternative = "greater")
+  gene_up<-colnames(cor_up$cor)[cor_up$cor>0.2 & cor_up$p<0.05]
+  gene_up<-gene_up[!is.na(gene_up)]
+  entrez_gene<-bitr(gene_up, fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Mm.eg.db)
+  enrichGO_up<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Mm.eg.db,keytype = "ENTREZID", ont ="BP",pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
+  cor_down<-corAndPvalue(x,y,alternative = "less")
+  gene_down<-colnames(cor_down$cor)[cor_down$cor< -0.2 & cor_down$p<0.05]
+  gene_down<-gene_down[!is.na(gene_down)]
+  entrez_gene<-bitr(gene_down, fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Mm.eg.db)
+  enrichGO_down<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Mm.eg.db,keytype = "ENTREZID", ont ="BP",pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
+  pseudo_gene<-list()
+  pseudo_gene[["gene_up"]]<-gene_up
+  pseudo_gene[["gene_down"]]<-gene_down
+  pseudo_gene[["enrichGO_up"]]<-enrichGO_up
+  pseudo_gene[["enrichGO_down"]]<-enrichGO_down
+  pseudo_gene[["GO_up"]]<-enrichGO_up@result$Description
+  pseudo_gene[["GO_down"]]<-enrichGO_down@result$Description
+  return(pseudo_gene)
+}
+
+lym_pseudo_gene<-cor_pvalue(as.numeric(lym_pseudotime$Pseudotime),t(data_exprMat[,rownames(lym_pseudotime)]))
