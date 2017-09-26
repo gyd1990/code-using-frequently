@@ -1,0 +1,34 @@
+library(Seurat)
+EC<- CreateSeuratObject(raw.data = data_exprMat,scale.factor = F,min.cells = 3,is.expr = 1)
+EC<-AddMetaData(EC,metadata = data_annot)
+EC<-SetAllIdent(EC,id="Cluster")
+EC<- ScaleData(object =EC)
+EC<- FindVariableGenes(object = EC, do.plot = FALSE,x.low.cutoff = 1)#1064
+VariableGenePlot(EC)
+###
+EC<-RunPCA(EC, pc.genes = EC@var.genes, pcs.compute = 20, use.imputed = FALSE,
+           rev.pca = T, weight.by.var = F, do.print = F)
+
+EC<-RunTSNE(EC, reduction.use = "pca", cells.use = NULL,dims.use = 1:10,
+            genes.use =NULL, seed.use = 1, do.fast = T, add.iter = 0,
+            dim.embed = 2,perplexity=15)
+DimPlot(EC, reduction.use = "pca", dim.1 = 1, dim.2 = 2,
+        pt.size = 3, group.by = "ident",do.return = T,dark.theme=F)
+###
+library(Rtsne)
+d<-dist(t(data_exprMat[EC@var.genes,]))
+set.seed(12345)
+tsne_out<-Rtsne(d,is_distance = TRUE,perplexity=15,max_ite=2500,verbose=TRUE,theta=0)
+EC@dr$tsne@cell.embeddings[]<-tsne_out$Y
+DimPlot(EC, reduction.use = "tsne", dim.1 = 1, dim.2 = 2,
+        pt.size = 3, group.by = "ident",do.return = T,dark.theme=F)
+library(dbscan)
+dbscan::kNNdistplot(EC@dr$tsne@cell.embeddings, k = 5)
+abline(h = 5, lty = 2)
+db <- dbscan(EC@dr$tsne@cell.embeddings,eps =5,minPts = 5 )
+db
+library("factoextra")
+color_new_cluster<-c("red","green","#A1D99B","#01665E","blue","yellow","orange","purple","darkgreen","black","#377EB8","#E7298A","#7570B3","#C7EAE5","#C7E9C0","#F781BF","#666666","#80B1D3","#FFFFB3","#FB9A99","#A6761D","#A65628","#FDD0A2","#8C2D04","#99000D","#EF3B2C","#6A51A3","#BCBDDC","#A1D99B","#DADAEB","grey")
+fviz_cluster(db, data = EC@dr$tsne@cell.embeddings, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point", ggtheme = theme_classic())+scale_color_manual(values=color_new_cluster[1:11])
