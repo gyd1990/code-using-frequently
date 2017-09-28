@@ -1,0 +1,16 @@
+####C2 12
+x<-""
+y<-""
+for(i in 1:11){xi=rep(i,11-i);yi=sample(i+1:10,11-i,replace =F )
+  x<-c(x,xi)
+  y<-c(y,yi)
+}
+sample_data<-cbind(as.numeric(x)[-1],as.numeric(y)[-1])
+#####A2 12
+x<-""
+y<-""
+for(i in 1:11){xi=rep(i,10);yi=sample(setdiff(11,i),10,replace =F )
+  x<-c(x,xi)
+  y<-c(y,yi)
+}
+sample_data<-cbind(as.numeric(x)[-1],as.numeric(y)[-1])
