@@ -1,3 +1,12 @@
+####数据的标准化
+nor_data<-apply(rawdata,2,function(x){1e5*x/sum(x)})
+#####SC3
+# SCESEt object,normalize
+library(SC3)
+library(scater)
+sceset <- newSCESet(countData = nor_data,lowerDetectionLimit=0,logExprsOffset = 1,logged=F)
+is_exprs(sceset) <- exprs(sceset) > 0
+sceset <- calculateQCMetrics(sceset)
 ####SC3输入的是scater object
 pollen <- sc3_prepare(pollen, ks = 2:5)
 ####评估K值
