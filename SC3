@@ -1,0 +1,11 @@
+####SC3输入的是scater object
+pollen <- sc3_prepare(pollen, ks = 2:5)
+####评估K值
+pollen <- sc3_estimate_k(pollen)
+####进行SC3
+pollen <- sc3(pollen, ks = 11, biology = TRUE)
+####数据的可视化
+sc3_plot_consensus(pollen, k = 11, show_pdata = "cell_type1")###consensus matrix
+sc3_plot_expression(pollen, k = 11, show_pdata = "cell_type1")###expression heatmap
+plotPCA(pollen, colour_by = "sc3_11_clusters")###PCA
+sc3_plot_markers(pollen, k = 11, show_pdata = "cell_type1")###find marker gene
