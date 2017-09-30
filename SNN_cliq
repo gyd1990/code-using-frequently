@@ -1,3 +1,4 @@
+###需要进一步学习原理以及参数设定，怎样减少参数的设定
 source("E:\\HSC\\cells\\data_test\\SNN_clip\\SNN.R")
 setwd("E:\\HSC\\cells\\data_test\\SNN_clip")
 SNN(data = t(logged_data[setdiff(pbmc@var.genes,cell_cycle$V1),remain_cell]),
@@ -13,3 +14,4 @@ snn.res <-
     intern = TRUE
   )
 cat(paste(snn.res, collapse = "\n"))
+####得到的文件是分群的文件
