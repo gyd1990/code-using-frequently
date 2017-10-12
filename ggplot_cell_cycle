@@ -1,8 +1,4 @@
-options(stringsAsFactors = F)
-rm(list=ls())
-load("E:\\HSC\\cells\\notch\\notch_analyse_0831_GOF_EP_HC_YS\\data.Rdata")
-anno<-subset(data_annot,subset = data_annot$Cluster %in% c("EP6","EP7"))
-setwd("F:\\tmp")
+
 cell_cycle<-read.csv("cell_cycle.csv")
 G1_S<-cell_cycle$G1.S.[2:44]
 G2_M<-cell_cycle$G2.M.[-1]
