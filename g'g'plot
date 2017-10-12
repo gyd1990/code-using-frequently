@@ -1,0 +1,30 @@
+options(stringsAsFactors = F)
+rm(list=ls())
+load("E:\\HSC\\cells\\notch\\notch_analyse_0831_GOF_EP_HC_YS\\data.Rdata")
+anno<-subset(data_annot,subset = data_annot$Cluster %in% c("EP6","EP7"))
+setwd("F:\\tmp")
+cell_cycle<-read.csv("cell_cycle.csv")
+G1_S<-cell_cycle$G1.S.[2:44]
+G2_M<-cell_cycle$G2.M.[-1]
+EP6<-rownames(anno)[anno$Cluster=="EP6"]
+EP7<-rownames(anno)[anno$Cluster=="EP7"]
+G1_S_data<-data_exprMat[G1_S,rownames(anno)]
+G1_S_mean<-apply(G1_S_data,2,mean)
+G2_M_data<-data_exprMat[G2_M,rownames(anno)]
+G2_M_mean<-apply(G2_M_data,2,mean)
+score_data<-data.frame(G1_S=G1_S_mean,G2_M=G2_M_mean,row.names = rownames(anno))
+score_data$state<-"proliferative"
+score_data$state[score_data$G1_S<2 & score_data$G2_M<2]<-"queisent"
+score_data$cell_state<-""
+score_data$G1_S<-as.numeric(score_data$G1_S)
+score_data$G2_M<-as.numeric(score_data$G2_M)
+
+score_data$cell_state[score_data$G2_M>score_data$G1_S]<-"G2M"
+score_data$cell_state[score_data$G2_M<score_data$G1_S & score_data$G2_M<2]<-"G1"
+score_data$cell_state[score_data$G2_M<score_data$G1_S &score_data$G2_M>=2]<-"S"
+score_data$cell_state[score_data$G1_S<2&score_data$G2_M<2]<-"queisent"
+score_data$cluster<-anno[rownames(score_data),]$Cluster
+library(ggplot2)
+ggplot()+geom_point(data = score_data,aes(x=G1_S,y=G2_M,shape=factor(cell_state,levels = c("G1","G2M","S","queisent"))),size=2)+scale_color_manual(values=col)+theme(legend.title=element_blank())+stat_ellipse()
+col<-c("#007502","#FE0000")
+names(col)<-c("EP6","EP7")
