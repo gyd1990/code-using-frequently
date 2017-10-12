@@ -1,0 +1,28 @@
+
+####ggplot绘制
+library(ggplot2)
+dt = data.frame(A = c(2, 7, 4, 10, 1), B = c('B','A','C','D','E'))
+dt = dt[order(dt$A, decreasing = TRUE),]
+myLabel = as.vector(dt$B)
+myLabel = paste(myLabel, "(", round(dt$A / sum(dt$A) * 100, 2), "%)", sep = "")
+p = ggplot(dt, aes(x = "", y = A, fill = B)) + geom_bar(stat = "identity", width = 1)
+p1<-p+coord_polar(theta = "y") +  labs(x = "", y = "", title = "") 
+p2<-p1+theme(axis.ticks = element_blank()) +  theme(legend.title = element_blank(), legend.position = "top") 
+p3<-p2+scale_fill_discrete(breaks = dt$B, labels = myLabel) +  theme(axis.text.x = element_blank()) 
+p4<-p3+geom_text(aes(y = A/2 + c(0, cumsum(A)[-length(A)]), x = sum(A)/20, label = myLabel), size = 3) ## 在图中加上百分比：x 调节标签到圆心的距离, y 调节标签的左右位置 p
+####
+op<-par(mfrow=c(2,2))#将画面分为一页显示四幅图
+#1绘制简单饼图
+slices<-c(10,12,4,16,8)#将五个数值变量赋予变量slices
+lbls<-c("US", "UK", "Australia", "Germany", "France")#将五个字符向量赋予变量lbls
+pie(slices, labels = lbls, main = "Simple Pie Chart")#饼图函数
+#2绘制百分数饼图
+pct<-round(slices/sum(slices)*100)#求百分数并取整
+lbls2<-paste(lbls," ",pct,"%",sep = "")#显示标签时加入百分号
+pie(slices,labels=lbls2, col=rainbow(length(lbls)), 
+    main="Pie Chart with Percentages")
+#3绘制3D饼图
+install.packages("plotrix")
+library(plotrix)#加载plotrix安装包，请在第一次使用之前先下载并安装这个包install.packages
+pie3D(slices,labels=lbls,explode=0.1,main = "3D Pie Chart ")
+par(op)
