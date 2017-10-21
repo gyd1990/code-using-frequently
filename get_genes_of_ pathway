@@ -1,0 +1,7 @@
+library(KEGGREST)
+listDatabases()
+org <- keggList("organism")
+kegg<- keggList("pathway","mmu")
+
+query<- keggGet(c("mmu04510"))#focal adhension
+gene1<-unlist(strsplit(query[[1]]$GENE[seq(2,length(query[[1]]$GENE),2)],split = ";"))[seq(1,length(query[[1]]$GENE),2)]
