@@ -1,0 +1,3 @@
+ercc.genes <- grep("^ERCC-", rownames(fData(es)), value = TRUE)
+rb.genes <- grep("^Rpl|^Rps|^Mrpl|^Mrps", rownames(fData(es)), value = TRUE)
+es <- es[which(!(rownames(fData(es)) %in% c(rb.genes, ercc.genes))), ]
