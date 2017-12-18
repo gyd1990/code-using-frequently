@@ -1,0 +1,24 @@
+t_test<-function(data,anno,logfc,pvalue,subject){
+  anno<-subset(anno,cell_type %in% subject)
+  data<-data[,rownames(anno)]
+  data<-data[rowMeans(data)>0,]
+  data_out_log<-2**data -1
+  data_combined<-cbind(anno,t(data_out_log))
+  average_exprMat<-aggregate(data_combined,by=list(cell_type=factor(data_combined$cell_type)),FUN="mean")
+  average_exprMat<-t(average_exprMat[,-2])
+  colnames(average_exprMat)<-average_exprMat[1,]
+  average_exprMat<-as.data.frame(average_exprMat[-1,])
+  #
+  pvalue<-c()
+  for(i in 1:nrow(data)){
+    x<-as.numeric(data[i,rownames(anno)[anno$cell_type==subject[1]]])
+    y<-as.numeric(data[i,rownames(anno)[anno$cell_type==subject[2]]])
+    t_test<-t.test(x,y,alternative = "two.sided")
+    pvalue<-c(pvalue,t_test$p.value)
+  }
+  fdr<-p.adjust(pvalue,method = "fdr")
+  average_exprMat$FDR<-fdr
+  average_exprMat$logFC<-log2(as.numeric(average_exprMat$E12_HSC)/(as.numeric(average_exprMat$T2_pre_HSC)+1e-03)+1e-8)
+  average_exprMat$`-log10FDR`<- -log10(average_exprMat$FDR)
+  result<-subset(average_exprMat,FDR<0.05 & abs(logFC)>1)
+}
