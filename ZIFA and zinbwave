@@ -1,0 +1,17 @@
+##################################################################
+###the code tell the new reduceDim method use ZIFA and zinbwave
+###################################################################
+###ZIFA need data(row:cell,column:gene) and translate into arraay ,also you should provide log counts data,if genes is large,you
+###should use blockZIFA
+
+import os as os
+import pandas as pd
+import csv
+from ZIFA import ZIFA
+from ZIFA import block_ZIFA
+
+file=pd.read_csv("ZIFA_allgene.csv")#read data
+
+table = np.array(file)#translate into array
+Z, model_params = block_ZIFA.fitModel(table, 5)
+
