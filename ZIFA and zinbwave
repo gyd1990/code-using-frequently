@@ -15,3 +15,4 @@ file=pd.read_csv("ZIFA_allgene.csv")#read data
 table = np.array(file)#translate into array
 Z, model_params = block_ZIFA.fitModel(table, 5)
 
+np.savetxt('output.ZIFA.table', Z, fmt='%.2f')#save
