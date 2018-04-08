@@ -1,0 +1,53 @@
+plottsne<-function(object,gene,name){
+  data<-object@data
+  tsne<-object@dr$tsne@cell.embeddings
+  tsne<-tsne[colnames(data),]
+  par(mfrow=c(2,3))
+  for(i in gene){
+    l<-data[i,]
+    mi <- min(l,na.rm=TRUE) 
+    ma <- max(l,na.rm=TRUE) 
+    ColorRamp <- colorRampPalette(rev(brewer.pal(n = 7,name = "RdYlBu")))(100) 
+    ColorLevels <- seq(mi, ma, length=length(ColorRamp)) 
+    v <- round((l - mi)/(ma - mi)*99 + 1,0) 
+    layout(matrix(data=c(1,3,2,4), nrow=2, ncol=2), widths=c(5,1,5,1), heights=c(5,1,1,1)) 
+    par(mar = c(3,5,2.5,2)) 
+    plot(tsne,xlab="Dim 1",ylab="Dim 2",main=i,pch=20,cex=0,col="grey") 
+    kk <- order(v,decreasing=F) 
+    points(tsne[kk,1],tsne[kk,2],col=ColorRamp[v[kk]],pch=20,cex=1.5) 
+    par(mar = c(3,2.5,2.5,2)) 
+    image(1, ColorLevels, 
+          matrix(data=ColorLevels, ncol=length(ColorLevels),nrow=1), 
+          col=ColorRamp, 
+          xlab="",ylab="", 
+          xaxt="n") 
+    layout(1) 
+  } 
+}
+
+plotpca<-function(object,gene,dim1,dim2){
+  data<-object@data
+  pca<-object@dr$pca@cell.embeddings[,c(dim1,dim2)]
+  pca<-pca[colnames(data),]
+  par(mfrow=c(2,3))
+  for(i in gene){
+    l<-data[i,]
+    mi <- min(l,na.rm=TRUE) 
+    ma <- max(l,na.rm=TRUE) 
+    ColorRamp <- colorRampPalette(rev(brewer.pal(n = 7,name = "RdYlBu")))(100) 
+    ColorLevels <- seq(mi, ma, length=length(ColorRamp)) 
+    v <- round((l - mi)/(ma - mi)*99 + 1,0) 
+    layout(matrix(data=c(1,3,2,4), nrow=2, ncol=2), widths=c(5,1,5,1), heights=c(5,1,1,1)) 
+    par(mar = c(3,5,2.5,2)) 
+    plot(pca,xlab=paste("PC",dim1,sep=""),ylab=paste("PC",dim2,sep=""),main=i,pch=20,cex=0,col="grey") 
+    kk <- order(v,decreasing=F) 
+    points(pca[kk,1],pca[kk,2],col=ColorRamp[v[kk]],pch=20,cex=1.5) 
+    par(mar = c(3,2.5,2.5,2)) 
+    image(1, ColorLevels, 
+          matrix(data=ColorLevels, ncol=length(ColorLevels),nrow=1), 
+          col=ColorRamp, 
+          xlab="",ylab="", 
+          xaxt="n") 
+    layout(1) 
+  } 
+}
