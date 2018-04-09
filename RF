@@ -14,8 +14,8 @@ get_deg <- function(m1, m2, fold){
     ttest <- t.test(m1[i, ], m2[i, ])
     p <- ttest$p.value
     p_all <- c(p_all, p)
-    avg_1 <- mean(m1[i, ], na.rm = T)
-    avg_2 <- mean(m2[i, ], na.rm = T)
+    avg_1 <- mean(2**m1[i, ]-1, na.rm = T)
+    avg_2 <- mean(2**m2[i, ]-1, na.rm = T)
     mean_all_1 <- c(mean_all_1, avg_1)
     mean_all_2 <- c(mean_all_2, avg_2)
     delta <- avg_1 - avg_2
@@ -36,13 +36,13 @@ get_deg <- function(m1, m2, fold){
 
 RF_analysis<-function(x){
   set.seed(1);
-  EC<- CreateSeuratObject(raw.data = x,scale.factor = F,min.cells = 3,is.expr = 1,min.genes = 2000)
-  EC<- ScaleData(object =EC);
+  EC<- CreateSeuratObject(raw.data = x,project="EC")
+  EC<- ScaleData(object =EC)
   EC<- FindVariableGenes(object = EC, do.plot = FALSE,x.low.cutoff = 1);
   hvg_gene<-setdiff(EC@var.genes,as.vector(as.character(cell_cycle$V1)));
   m <- as.matrix(x[hvg_gene,]);
   myCol <- c("darkblue", "white", "red");
-  hc <- hclust(as.dist(1-cor(m, method = "pearson", use = "pairwise.complete.obs")), method = "ward.D2");
+  hc <- hclust(as.dist(1-cor(m, method = "spearman", use = "pairwise.complete.obs")), method = "ward.D2");
   plot(as.dendrogram(hc),hang=-1,col="darkgreen");
   cl <- cutree(hc, k=2);
   if ((table(cl)[1] < 10) || (table(cl)[2] < 10 )) {
@@ -178,15 +178,15 @@ RF_analysis<-function(x){
   get_fs_deg <- get_deg(cl_1, cl_2, 2)
   index_2fc <- c(get_fs_deg[[1]], get_fs_deg[[2]])
   m_2fc <- as.matrix(cbind(cl_1[index_2fc, ], cl_2[index_2fc, ]))
-  hr_m_2fc <- hclust(as.dist(1 - cor(t(m_2fc), method = "pearson", use = "pairwise.complete.obs")), method = "ward.D2")
+  hr_m_2fc <- hclust(as.dist(1 - cor(t(m_2fc), method = "spearman", use = "pairwise.complete.obs")), method = "ward.D2")
   heatmap.2(m_2fc, trace = "none", Rowv = as.dendrogram(hr_m_2fc), dendrogram = "row", Colv = F, colsep = ncol(cl_1), sepwidth = 0.1, sepcolor = "green", col = colorRampPalette(c(myCol)), ColSideColors = c(rep("red", ncol(cl_1)), rep("blue", ncol(cl_2))), main = "Heatmp of clusters", cexCol = 0.4, cexRow = 0.3, labRow = NULL)
   legend("topright", legend = c("Cluster 1", "Cluster 2"), fill = c("red", "blue"), border="white", bty="n", cex=1)
-  library(org.Hs.eg.db)
+  library(org.Mm.eg.db)
   library(clusterProfiler)
-  entrez_gene<-bitr(rownames(cl_1)[get_fs_deg[[1]]], fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Hs.eg.db)
-  enrichGO1<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Hs.eg.db,keytype = "ENTREZID", ont ="BP",  pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
-  entrez_gene<-bitr(rownames(cl_2)[get_fs_deg[[2]]], fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Hs.eg.db)
-  enrichGO2<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Hs.eg.db,keytype = "ENTREZID", ont ="BP",  pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
+  entrez_gene<-bitr(rownames(cl_1)[get_fs_deg[[1]]], fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Mm.eg.db)
+  enrichGO1<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Mm.eg.db,keyType = "ENTREZID", ont ="BP",  pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
+  entrez_gene<-bitr(rownames(cl_2)[get_fs_deg[[2]]], fromType = "SYMBOL",toType = "ENTREZID",OrgDb = org.Mm.eg.db)
+  enrichGO2<- enrichGO(gene = entrez_gene$ENTREZID, OrgDb = org.Mm.eg.db,keyType = "ENTREZID", ont ="BP",  pAdjustMethod = "BH",pvalueCutoff  = 0.01,qvalueCutoff  = 0.05,readable= TRUE)
   cluster<-list()
   cluster[["group1"]]<-colnames(cl_1)
   cluster[["group2"]]<-colnames(cl_2)
