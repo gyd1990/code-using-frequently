@@ -48,3 +48,54 @@ kegg_expression<-function(x,,org,num,data,pca,anno,cluster,col){
 }
 
 kegg_expression(x="wnt",data=data_exprMat,pca=as.data.frame(pca$ind$coord[,1:2]),anno = anno_sc3,"sc3_3_clusters",col)
+
+########本地读取Msig.DB下载的gmt文件
+options(stringsAsFactors = F)
+rm(list=ls())
+load("F:/zy_THY/thy_human/thy_human_resequencing/human_thy.Rdata")
+
+kegg_expression<-function(x,org="hsa",num=NULL,data,PCA,anno,cluster,col){
+  #x为搜索的关键词,关键词不分大小写
+  #num为匹配多个KEGG时选择的KEGG
+  #pca为pca的坐标
+  #data 需要是标准化log后的数据
+  #anno 为注释文件,cluster为需要注释的列
+  #col为颜色的注释
+  library(clusterProfiler)
+  if(org=="mmus"){
+    kegg<- read.gmt("C:/GSEA/kegg.v5.2.symbols_mouse.gmt")
+  }else{
+    kegg<- read.gmt("F:/data using frequently/c2.cp.kegg.v6.1.symbols.gmt")
+  }
+  
+  kegg_id<-unique(grep(x,kegg$ont,value = T,ignore.case = T))
+  if(!is.null(num)){
+    kegg_id<-kegg_id[num]
+  }else{
+    if(length(kegg_id)>1){
+      print(kegg_id)
+    }else{
+      our_gene<-kegg$gene[kegg$ont==kegg_id]
+    }
+  }
+  print(our_gene)
+  library(ggplot2)
+  data1<-data[intersect(our_gene,rownames(data)),rownames(PCA)]
+  data1<-data1[rowMeans(data1)>0,]
+  scale_data<-t(apply(data1,1,function(x) 10*(x-0)/max(x)))
+  PCA$score<- colMeans(scale_data)             
+  colnames(PCA)<-c("Dim1","Dim2","score")
+  print(ggplot(data=PCA,aes(x=Dim1,y=Dim2,col=score))+geom_point(size=4)+
+    scale_color_gradientn(colours = colorRampPalette(c("grey","red"))(100))+theme_classic()+labs(title=x))
+  
+  library(pheatmap)
+  anno<-subset(anno,select=cluster)
+  pheatmap(data1[intersect(our_gene,rownames(data1)),rownames(anno)[order(anno[,1])]],show_colnames = F,show_rownames = T,cluster_rows = T,cluster_cols =F,annotation_col = anno,annotation_colors = list(cluster=col))
+}
+
+pca_data<-as.data.frame(pca$ind$coord[,1:2])
+kegg_expression(x="wnt",data=data_exprMat,PCA=pca_data,anno = anno_sc3,cluster="sc3_3_clusters",col=col)
+kegg_expression(x="notch",data=data_exprMat,PCA=pca_data,anno = anno_sc3,cluster="sc3_3_clusters",col=col)
+kegg_expression(x="erbb",data=data_exprMat,PCA=pca_data,anno = anno_sc3,cluster="sc3_3_clusters",col=col)
+kegg_expression(x="tgf",data=data_exprMat,PCA=pca_data,anno = anno_sc3,cluster="sc3_3_clusters",col=col)
+
