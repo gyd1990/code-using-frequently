@@ -1,0 +1,67 @@
+library(Mpath)
+
+anno_Mpath<-subset(tsne_data,select="cluster")
+anno_Mpath$SampleID<-rownames(anno_Mpath)
+anno_Mpath$GroupID<-anno_Mpath$cluster
+anno_Mpath<-anno_Mpath[,-1]
+exprs = ana_normalized[,rownames(anno_Mpath)]
+baseName = "data_exprMat";
+
+neighbor_network <- build_network(exprs = exprs,
+                                  landmark_cluster = anno_Mpath,
+                                  baseName = baseName)
+
+### TrimNet: trim edges of lower weights
+trimmed_net <- trim_net(neighbor_network,textSize=10,
+                        baseName = baseName,
+                        method = "mst")
+
+#########
+# network <- graph.adjacency(as.matrix(neighbor_network), weighted = TRUE)
+dp <- as.matrix(0-neighbor_network)#距离矩阵
+network <- graph.adjacency(dp, weighted = TRUE)#邻接矩阵
+dp_mst <- minimum.spanning.tree(network)#MST
+tsne_project<-tsne_data[rownames(anno_Mpath),]
+tsne_cluster<-tsne_project
+tsne_cluster<-as.data.frame(tsne_cluster)[,1:2]
+tsne_cluster$cluster<-anno_Mpath[rownames(tsne_cluster),,drop=F]$GroupID
+
+library(dplyr)
+cluster_center<- aggregate(.~cluster,data=tsne_cluster,FUN = mean)
+rownames(cluster_center)<-cluster_center$cluster
+cluster_center<-cluster_center[,-1]
+clusterid<-rownames(cluster_center)
+#####构建文件$1是pca loading matrix ,$2 mst $3 cluster center id $4 cluster center position
+
+data_project<-list(pcareduceres = tsne_project, MSTtree = dp_mst, clusterid = clusterid, 
+                   clucenter = cluster_center)
+
+
+
+clulines <- NULL
+alledges <- as.data.frame(get.edgelist(dp_mst), 
+                          stringsAsFactors = F) #将mst转化为df
+
+clulines<-NULL
+for (i in 1:nrow(alledges)) {
+  clulines <- rbind(clulines, c(cluster_center[alledges[i,1],], cluster_center[alledges[i, 2],]))
+}
+
+
+colnames(clulines)<-c("x","y","xend","yend")
+clulines<-as.data.frame(clulines)
+clulines<-as.data.frame(apply(clulines,2,function(x) x<-as.numeric(x)))
+
+g <- ggplot()+geom_point(data = as.data.frame(tsne_cluster), aes(x = tSNE_1, y = tSNE_2),size=2,col=scales::alpha("grey",alpha = 0.6))+theme_classic()
+
+g<-g+annotate("segment", x = clulines$x, xend = clulines$xend, y = clulines$y, yend = clulines$yend, 
+              size = 1, arrow = arrow(ends = "both", length = unit(0.2,"cm")))  
+
+clucenter <- data.frame(x = cluster_center[, 1], y = cluster_center[,2], Cluster = clusterid)
+
+
+
+# names(col)<-paste("cluster",names(col),sep="")
+g<-g+geom_point(data=clucenter,aes(x=x,y=y,color=Cluster),size=6)+scale_color_manual(values = col)
+
+g <- g + geom_text(aes_string(label = "Cluster", x = "x", y = "y", size = NULL), data = clucenter, size = 5)
