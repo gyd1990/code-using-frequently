@@ -1,0 +1,62 @@
+# library(clusterExperiment)
+# #########################################################
+# ### clusterExperiment assemble SC3 ,hclust and others method maybe  more stable
+# ### than Kmeans,but the result dependent on the makedendrogram
+# ### so Mergecluster is not reliable,so we can do this by ourselves
+# ### 1.gene  high gene(also can fiter rare and conmmon cells) 
+# ### 2.method makedendrogram (need chose)
+# ### 3.normalize bu limma
+# #####################################################
+# 
+# anno<-data.frame(cluster=rep("thy",43),row.names = colnames(data))
+# sc<-SummarizedExperiment(assays=list(counts=as.matrix(data)),colData=as.matrix(anno))
+# 
+# #filter >5 reads at least 5 cells
+# pass_filter <- apply(assay(sc), 1, function(x) length(x[x >= 5]) >= 5)
+# sc <- sc[pass_filter,]
+# dim(assay(sc))
+# ####normalized
+# fq <- round(limma::normalizeQuantiles(assay(sc)))
+# assays(sc) <- list(normalized_counts=fq)
+# 
+# #####cluster with RSEC 
+# system.time(rsecFluidigm<-RSEC(sc,isCount = TRUE,nPCADims=c(5,10),dimReduce="PCA",ncores=1,combineMinSize=2,random.seed=176201,dendroReduce="var"))
+# 
+# ######cluster workflow
+# defaultMar<-par("mar")
+# plotCMar<-c(1.1,8.1,4.1,1.1)
+# par(mar=plotCMar)
+# plotClusters(rsecFluidigm,main="Clusters from RSEC", whichClusters="workflow", axisLine=-1)
+# 
+# #######barplot and consensus matrix
+# par(mar=plotCMar)
+# plotBarplot(rsecFluidigm,whichClusters=c("mergeClusters" ,"combineMany"))
+# plotCoClustering(rsecFluidigm,whichClusters=c("mergeClusters","combineMany"))
+# ########extract consensus matrix
+# CM<-as.matrix(rsecFluidigm@coClustering)
+# rownames(CM)<-colnames(data)
+# colnames(CM)<-colnames(data)
+# hc<-hclust(dist(CM),method = "complete")
+# pheatmap::pheatmap(CM,show_rownames = F,show_colnames = F,cluster_rows = hc,cluster_cols = hc,annotation_col = subset(pca_data,select="combineMany"))
+# ######## calculate DEG and decide whether devide or not
+# 
+# #####plot Dendrogram and PCA
+# plotDendrogram(rsecFluidigm,whichClusters=c("combineMany","mergeClusters"),plotType="colorblock",leafType="sample")
+# plotDimReduce(rsecFluidigm,whichDims=c(1:4))
+# 
+# ######get DEG and plot heatmap
+# pairsAllRSEC<-getBestFeatures(rsecFluidigm,contrastType="Pairs",p.value=0.05,
+#                               number=nrow(rsecFluidigm),isCount=TRUE)
+# plotHeatmap(rsecFluidigm, whichClusters=c("combineMany","mergeClusters"),clusterSamplesData="dendrogramValue",
+#             clusterFeaturesData=unique(pairsAllRSEC[,"IndexInOriginal"]),
+#             main="Heatmap of features w/ significant pairwise differences",
+#             breaks=.99)
+# #######extract
+# anno_data<-clusterMatrix(rsecFluidigm)
+# rownames(anno_data)<-colnames(data)
+# anno_data<-as.data.frame(anno_data)
+# anno_data$mergeClusters<-as.character(anno_data$mergeClusters)
+# anno_data$combineMany<-as.character(anno_data$combineMany)
+# 
+# gene<-rownames(assay(sc))[unique(pairsAllRSEC[,"IndexInOriginal"])]
+# 
